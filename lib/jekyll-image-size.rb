@@ -29,11 +29,16 @@ class ImageSizeTag < Liquid::Tag
 
     source = source.sub(/^\//, '')
 
-    size = FastImage.size(source)
+    sourceDir = File.dirname(context.registers[:page]['path'])
+
+    relativePath = File.expand_path(sourceDir, context['site.source'])
+
+    size = FastImage.size(File.expand_path(source, relativePath))
+
     if context && !size
       if contextSource = rawSource = context[source]
         contextSource = contextSource.sub(/^\//, '')
-        size = FastImage.size(contextSource)
+        size = FastImage.size(File.expand_path(contextSource, relativePath))
       end
     end
 
