@@ -7,7 +7,6 @@ class ImageSizeError < StandardError; end
 
 # SEE https://github.com/Shopify/liquid/wiki/Liquid-for-Programmers
 class ImageSizeTag < Liquid::Tag
-
   def initialize(tagName, content, tokens)
     super
     @content = content.strip
@@ -29,16 +28,13 @@ class ImageSizeTag < Liquid::Tag
 
     source = source.sub(/^\//, '')
 
-    sourceDir = File.dirname(context.registers[:page]['path'])
-
-    relativePath = File.expand_path(sourceDir, context['site.source'])
-
-    size = FastImage.size(File.expand_path(source, relativePath))
+    size = FastImage.size(ImageSizeTag.resolvePath(source, context))
 
     if context && !size
       if contextSource = rawSource = context[source]
         contextSource = contextSource.sub(/^\//, '')
-        size = FastImage.size(File.expand_path(contextSource, relativePath))
+
+        size = FastImage.size(ImageSizeTag.resolvePath(contextSource, context))
       end
     end
 
@@ -87,6 +83,34 @@ class ImageSizeTag < Liquid::Tag
     when "size", nil  then "#{width}x#{height}"
     else raise ImageSizeError.new "invalid imagesize mode: #{mode}"
     end
+  end
+
+  def self.resolvePath(path, context)
+    configDestination = context.registers[:site].config["destination"]
+
+    unless configDestination
+      raise ImageSizeError.new "tag used without site variable in context"
+    end
+
+    sourcesDir = File.expand_path(configDestination)
+
+    if path.start_with?("./")
+      pagePath = context.registers[:page]["dir"]
+
+      unless pagePath
+        raise ImageSizeError.new "path is relative to page, but no page variable found in context: #{path}"
+      end
+
+      pageDir = File.expand_path(pagePath, sourcesDir)
+
+      pageDir = File.expand_path(pagePath, sourcesDir)
+
+      path = File.expand_path(path, pageDir)
+    elsif !path.start_with?("/")
+      path = File.expand_path(path, sourcesDir)
+    end
+
+    path
   end
 
   def render(context)
